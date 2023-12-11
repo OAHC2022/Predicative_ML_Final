@@ -1,3 +1,7 @@
 __pycache__
 *.mp4
 venv
+*.pth
+*.npy
+videos/
+*.json
