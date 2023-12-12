@@ -13,3 +13,5 @@
 ![Alt text](./GCL/plots/bc_gcl_learning_curve.png)
 ![Alt text](./GCL/plots/gcl_learning_curve.png)
 
+## Credits
+This repo adapted works from https://github.com/nishantkr18/guided-cost-learning and https://github.com/ericyangyu/PPO-for-Beginners
