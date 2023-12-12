@@ -21,8 +21,7 @@ torch.manual_seed(seed)
 # ENV SETUP
 env_name = 'Acrobot-v1'
 env = gym.make(env_name).unwrapped
-# if seed is not None:
-#     env.seed(seed)
+
 n_actions = env.action_space.n
 state_shape = env.observation_space.shape
 state = env.reset(seed=seed)
@@ -33,10 +32,11 @@ with open("../data/gen_data.json", "r") as f:
 
 # INITILIZING POLICY AND REWARD FUNCTION
 policy = PG(state_shape, n_actions)
+# policy.load_state_dict(torch.load('bc_pretrain_policy.pth'))
 
 cost_f = CostNN(state_shape[0] + 1)
-policy_optimizer = torch.optim.AdamW(policy.parameters(), 1e-3)
-cost_optimizer = torch.optim.AdamW(cost_f.parameters(), 1e-3, weight_decay=1e-4)
+policy_optimizer = torch.optim.AdamW(policy.parameters(), 8e-4)
+cost_optimizer = torch.optim.AdamW(cost_f.parameters(), 8e-4, weight_decay=1e-4)
 
 mean_rewards = []
 mean_costs = []
@@ -68,7 +68,8 @@ D_demo = preprocess_traj(demo_trajs, D_demo, is_Demo=True) # states, prob, actio
 # print(D_demo.shape)
 # exit()
 return_list, sum_of_cost_list = [], []
-for i in range(2000):
+best_return = -1000
+for i in range(200):
     print("=== Training Iteration %d ==="%(i))
     # use default policy to generate more examples and add to the D-sample
     trajs = [policy.generate_session(env,2000) for _ in range(EPISODES_TO_PLAY)]
@@ -141,9 +142,6 @@ for i in range(2000):
         log_probs_for_actions = torch.sum(
             log_probs * to_one_hot(actions, env.action_space.n), dim=1)
         entropy = -torch.mean(torch.sum(probs*log_probs, dim = -1) )
-        # print(torch.sum(probs*log_probs, dim = -1))
-        # print(log_probs_for_actions*cumulative_returns)
-        # exit()
         loss = -torch.mean(log_probs_for_actions*cumulative_returns -entropy*1e-2) 
 
         # UPDATING THE POLICY NETWORK
@@ -153,6 +151,11 @@ for i in range(2000):
 
     returns = sum(rewards)
     sum_of_cost = np.sum(costs)
+
+    if returns > best_return:
+        best_return = returns
+        torch.save(policy.state_dict(), 'acrobot_policy_model.pth')
+    
     return_list.append(returns)
     sum_of_cost_list.append(sum_of_cost)
 
@@ -163,30 +166,28 @@ for i in range(2000):
     # PLOTTING PERFORMANCE
     if i % 10 == 0:
         # clear_output(True)
-        print(f"mean reward:{np.mean(return_list)} loss: {loss_IOC}")
+        print(f"mean reward:{best_return} loss: {loss_IOC}")
 
         plt.figure(figsize=[16, 12])
-        plt.subplot(2, 2, 1)
         plt.title(f"Mean reward per {EPISODES_TO_PLAY} games")
-        plt.plot(mean_rewards)
+        plt.plot(return_list)
         plt.grid()
 
-        plt.subplot(2, 2, 2)
-        plt.title(f"Mean cost per {EPISODES_TO_PLAY} games")
-        plt.plot(mean_costs)
-        plt.grid()
+        # plt.subplot(2, 2, 2)
+        # plt.title(f"Mean cost per {EPISODES_TO_PLAY} games")
+        # plt.plot(mean_costs)
+        # plt.grid()
 
-        plt.subplot(2, 2, 3)
-        plt.title(f"Mean loss per {REWARD_FUNCTION_UPDATE} batches")
-        plt.plot(mean_loss_rew)
-        plt.grid()
+        # plt.subplot(2, 2, 3)
+        # plt.title(f"Mean loss per {REWARD_FUNCTION_UPDATE} batches")
+        # plt.plot(mean_loss_rew)
+        # plt.grid()
 
         # plt.show()
         plt.savefig('plots/GCL_learning_curve.png')
         plt.close()
 
-    if np.mean(return_list) > -10:
-        break
-
-print(policy.state_dict())
-torch.save(policy.state_dict(), 'acrobot_policy_model_new.pth')
+with open("rewards.json", "w") as f:
+    json.dump(return_list, f)
+# print(policy.state_dict())
+# torch.save(policy.state_dict(), 'acrobot_policy_model_1000.pth')

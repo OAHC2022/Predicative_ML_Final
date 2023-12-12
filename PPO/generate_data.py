@@ -38,16 +38,12 @@ while True:
     if terminated or truncated:
         observation, info = env.reset()
         data.append([states, rewards, actions])
+        states, traj_probs, actions, rewards = [], [], [], []
         
         count += 1
     if count >= num_expert:
         break
 env.close()
-# s, r, a = data[0]
-# print(len(s), len(r), len(a))
-# exit()
-# print(data.shape)
+print(len(data))
 with open('data/gen_data.json', 'w') as f:
     json.dump(data, f)
-# np.save(f'data/gen_data.npy', data)
-# print(policy)

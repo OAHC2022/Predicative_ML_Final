@@ -4,4 +4,4 @@ venv
 *.pth
 *.npy
 videos/
-*.json
+*.ipynb
